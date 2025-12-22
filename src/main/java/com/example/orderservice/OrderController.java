@@ -1,160 +1,186 @@
 package com.example.orderservice;
 
+import org.hibernate.Internal;
+import org.hibernate.sql.Update;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.RestController;
 
-@RestController
+@RestController // HTTP request
 public class OrderController {
+    @Value("${order.shipping.full-fill-price}")
+    private double full_fill_price;
+
+    @Value("${order.shipping.full-fill-discount}")
+    private double full_fill_discount;
+
+
+    enum CustomerType {
+        VIP(0.15),
+        PREMIUM(0.10),
+        REGULAR(0.05),
+        NEW(0.02);
+
+        private final double discount;
+        private static final Map<String, CustomerType> Customer_Map = new HashMap<>();
+
+        static {
+            for (CustomerType type: CustomerType.values()) {
+                Customer_Map.put(type.name().toUpperCase(), type);
+            }
+        }
+
+        CustomerType(double discount) {
+            this.discount = discount;
+        }
+
+        private double getDiscount() {
+            return this.discount;
+        }
+
+        public static double getDiscountByString(String customer) {
+            if (customer == null) return 0;
+            CustomerType type = Customer_Map.get(customer.toUpperCase());
+            return (type != null) ? type.getDiscount() : 0;
+        }
+    }
+
+    @Autowired // injection
+    private OrderRepository orderRepository;
     
-    @Autowired
-    private OrderRepository or;
-    
-    @Autowired
-    private RestTemplate rt;
+    @Autowired // injection
+    private ProductService productService;
     
     // BAD: Everything in controller, no service layer
     // BAD: Magic numbers, hardcoded URLs, no error handling
     // BAD: Using Map instead of DTOs
     @PostMapping("/order")
-    public String makeOrder(@RequestBody Map<String, Object> req) {
+    public OrderResponse makeOrder(@RequestBody OrderRequest request) {
         
-        // BAD: Long if-else that should be strategy/enum or HashMap
-        String customerType = (String) req.get("customerType");
-        double discount = 0;
-        if (customerType.equals("VIP")) {
-            discount = 0.15;
-        } else if (customerType.equals("PREMIUM")) {
-            discount = 0.10;
-        } else if (customerType.equals("REGULAR")) {
-            discount = 0.05;
-        } else if (customerType.equals("NEW")) {
-            discount = 0.02;
-        } else {
-            discount = 0;
-        }
+        // BAD: Long if-else that should be strategy/enum or HashMap V
+        String customerType = request.getCustomerType();
+        double discount = CustomerType.getDiscountByString(customerType);
+
 
         // BAD: Using raw ArrayList, should use proper collection
-        ArrayList items = (ArrayList) req.get("items");
-        double total = 0;
-        
+        List<ProductItem> items = request.getItems();
+
         // BAD: No duplicate detection - should use Set!
         // BAD: Nested loops, bad variable names, no Stream API
         // BAD: N+1 query problem - API call inside loop!
-        for (int i = 0; i < items.size(); i++) {
-            Map item = (Map) items.get(i);
-            Long pid = Long.parseLong(item.get("productId").toString());
-            int q = Integer.parseInt(item.get("quantity").toString());
-            
-            // BAD: Hardcoded URL, no error handling
-            String url = "http://localhost:8081/api/products/" + pid;
-            Map prod = rt.getForObject(url, Map.class);
-            
-            if (prod != null) {
-                double p = Double.parseDouble(prod.get("price").toString());
-                int stock = Integer.parseInt(prod.get("stock").toString());
-                
-                // BAD: Deep nesting, should extract method
-                if (stock > 0) {
-                    if (q <= stock) {
-                        total = total + (p * q);
-                    } else {
-                        return "Error: Not enough stock for product " + pid;
-                    }
-                } else {
-                    return "Error: Product " + pid + " out of stock";
-                }
+        Set<Long> visitedIDs = new HashSet<>();
+        List<Long> productIDs = new ArrayList<>();
+        for (ProductItem item : items) {
+            if(!visitedIDs.add(item.getProductId())) { // duplicate
+                throw new RuntimeException("Error: Duplicate product ID " + item.getProductId());
             }
+
+            productIDs.add(item.getProductId());
         }
-        
+
+        Map<Long, ProductInformation> productInformationMap = productService.getProductsByIDs(productIDs);
+        double total = 0;
+        Order order = new Order();
+        order.setCustomerType(customerType);
+        order.setStatus(Order.OrderStatus.PENDING);
+
+        for (ProductItem item: items) {
+            ProductInformation productInfo = productInformationMap.get(item.getProductId());
+            if ( productInfo == null ) {
+                throw new RuntimeException("Error: Product " + item.getProductId() + " is missing");
+            }
+
+            if ( productInfo.getStock() <= 0 ) {
+                throw new RuntimeException("Error: Product " + item.getProductId() + " out of stock");
+            }
+
+            if ( item.getQuantity() > productInfo.getStock() ) {
+                throw new RuntimeException("Error: Not enough stock for product " + item.getProductId());
+            }
+
+            total += (productInfo.getPrice() * item.getQuantity());
+
+            // add OrderItem
+            OrderItem orderItem = new OrderItem();
+            orderItem.setProductId(item.getProductId());
+            orderItem.setQuantity(item.getQuantity());
+            orderItem.setPrice(productInfo.getPrice());
+
+            order.getItems().add(orderItem);
+        }
+
+
         // BAD: Magic numbers, unclear calculation
         double finalTotal = total - (total * discount);
-        if (finalTotal > 1000) {
-            finalTotal = finalTotal - 50; // free shipping
+        if ( finalTotal > full_fill_price ) {
+            finalTotal -= full_fill_discount;
         }
-        
-        // BAD: No proper entity, saving raw data
-        Order o = new Order();
-        o.setCustomerType(customerType);
-        o.setTotal(finalTotal);
-        o.setStatus("PENDING");
-        or.save(o);
-        
-        // BAD: Returning String instead of proper response DTO
-        return "Order created: " + o.getId();
+        order.setTotal(finalTotal);
+
+        Order saveOrder = orderRepository.save(order);
+        return new OrderResponse(saveOrder.getId(), saveOrder.getStatus().toString(), saveOrder.getTotal(), "Order created:" + saveOrder.getId());
     }
     
     // BAD: Another giant method with duplicated logic
     @GetMapping("/order/{id}")
-    public String getOrder(@PathVariable Long id) {
-        Order o = or.findById(id).get(); // BAD: No error handling
-        
-        String status = o.getStatus();
-        String msg = "";
-        
-        // BAD: Should use switch or enum
-        if (status.equals("PENDING")) {
-            msg = "Your order is being processed";
-        } else if (status.equals("CONFIRMED")) {
-            msg = "Your order is confirmed";
-        } else if (status.equals("SHIPPED")) {
-            msg = "Your order is on the way";
-        } else if (status.equals("DELIVERED")) {
-            msg = "Your order has been delivered";
-        } else if (status.equals("CANCELLED")) {
-            msg = "Your order was cancelled";
-        } else {
-            msg = "Unknown status";
-        }
-        
-        return "Order " + id + ": " + msg + " | Total: $" + o.getTotal();
+    public OrderResponse getOrder(@PathVariable Long id) {
+        Order order = orderRepository.findById(id).orElseThrow(() -> new RuntimeException("Order id" + id + "not found"));
+        String msg = order.getStatus().getDescription();
+        return new OrderResponse(
+                order.getId(),
+                order.getStatus().toString(),
+                order.getTotal(),
+                msg
+        );
     }
     
     // BAD: Another method with performance issues
     @GetMapping("/analytics/popular")
-    public String getPopularProducts() {
-        List<Order> allOrders = or.findAll();
+    public List<Map<String, Object>> getPopularProducts() {
+        List<Order> allOrders = orderRepository.findAll();
         
         // BAD: Nested loops to count products - O(n²)
         // BAD: Should use HashMap to count!
-        ArrayList productCounts = new ArrayList();
-        
+        Map<Long, Integer> frequencyMap = new HashMap<>(); // id -> count
         for (Order order : allOrders) {
-            for (String item : order.getItems()) {
-                // Simulating product ID extraction
-                Long productId = Long.parseLong(item.split(":")[0]);
-                
-                // BAD: Linear search every time
-                boolean found = false;
-                for (int i = 0; i < productCounts.size(); i++) {
-                    Map count = (Map) productCounts.get(i);
-                    if (count.get("productId").equals(productId)) {
-                        count.put("count", (Integer) count.get("count") + 1);
-                        found = true;
-                        break;
-                    }
-                }
-                
-                if (!found) {
-                    Map newCount = new HashMap();
-                    newCount.put("productId", productId);
-                    newCount.put("count", 1);
-                    productCounts.add(newCount);
-                }
+            for(OrderItem item: order.getItems()) {
+                Long id = item.getProductId();
+                int quantity = item.getQuantity();
+                frequencyMap.put(id, frequencyMap.getOrDefault(id, 0) + quantity);
             }
         }
-        
-        return productCounts.toString();
+
+        // create response
+        List<Map<String, Object>> resultList = new ArrayList<>();
+        for ( Map.Entry<Long, Integer> entry: frequencyMap.entrySet() ) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("productId", entry.getKey());
+            map.put("totalSold", entry.getValue());
+            resultList.add(map);
+        }
+
+        return resultList;
     }
     
     // BAD: No validation, no proper response
     @PutMapping("/order/{id}/status")
-    public String updateStatus(@PathVariable Long id, @RequestBody Map<String, String> req) {
-        Order o = or.findById(id).get(); // BAD: No error handling
-        String newStatus = req.get("status");
-        o.setStatus(newStatus);
-        or.save(o);
-        return "Status updated";
+    public OrderResponse updateStatus(@PathVariable Long id, @RequestBody UpdateOrderStatusRequest request) {
+        Order order = orderRepository.findById(id).orElseThrow(() -> new RuntimeException("Order id" + id + "not found"));
+        if(request.getStatus() == null) {
+            throw new RuntimeException("Status not found");
+        }
+
+        order.setStatus(request.getStatus());
+        orderRepository.save(order);
+
+        return new OrderResponse(
+                order.getId(),
+                order.getStatus().toString(),
+                order.getTotal(),
+                "Status updated"
+        );
     }
 }
