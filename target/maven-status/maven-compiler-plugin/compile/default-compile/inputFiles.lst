@@ -1,4 +1,15 @@
-C:\Users\m.bin.hassan\OneDrive - Accenture\Desktop\workshop-24-dec\messy-order-service\src\main\java\com\example\orderservice\OrderController.java
-C:\Users\m.bin.hassan\OneDrive - Accenture\Desktop\workshop-24-dec\messy-order-service\src\main\java\com\example\orderservice\Order.java
-C:\Users\m.bin.hassan\OneDrive - Accenture\Desktop\workshop-24-dec\messy-order-service\src\main\java\com\example\orderservice\OrderRepository.java
-C:\Users\m.bin.hassan\OneDrive - Accenture\Desktop\workshop-24-dec\messy-order-service\src\main\java\com\example\orderservice\OrderServiceApplication.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\model\Order.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\dto\ProductDTO.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\dto\CreateOrderRequest.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\service\OrderService.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\controller\ProductMockController.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\OrderServiceApplication.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\model\enums\CustomerType.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\dto\OrderItemRequest.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\controller\OrderController.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\model\enums\OrderStatus.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\repository\OrderRepository.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\client\ProductClient.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\dto\OrderResponse.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\model\OrderItem.java
+C:\00_Project\messy-order-service\src\main\java\com\example\orderservice\dto\OrderItemResponse.java
