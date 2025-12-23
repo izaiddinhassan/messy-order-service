@@ -5,10 +5,11 @@ import com.example.orderservice.entity.Order;
 import com.example.orderservice.repository.OrderRepository;
 import com.example.orderservice.service.AnalyticsService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 
-
+@Service
 public class AnalyticsServiceImpl implements AnalyticsService {
     @Autowired
     private OrderRepository orderRepository;

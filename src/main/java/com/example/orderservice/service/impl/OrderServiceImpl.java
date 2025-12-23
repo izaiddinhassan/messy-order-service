@@ -7,19 +7,18 @@ import com.example.orderservice.service.OrderService;
 import com.example.orderservice.utill.OrderStatus;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+
 
 import static com.example.orderservice.utill.Constants.FREE_SHIPPING_DISCOUNT;
 import static com.example.orderservice.utill.Constants.FREE_SHIPPING_THRESHOLD;
 
-
+@Service
 public class OrderServiceImpl implements OrderService {
 
 
