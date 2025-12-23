@@ -27,12 +27,12 @@ public class ProductService {
             } catch (Exception e) {
                 System.out.println("Error fetching product ID:" + productId + " Error Message: " + e.getMessage());
             }
+//            mock Data
 //            ProductInformation fakeInfo = new ProductInformation();
 //            fakeInfo.setId(productId);
-//            fakeInfo.setPrice(100.0); // 假價格
-//            fakeInfo.setStock(999);   // 假庫存 (設大一點才不會報錯)
-
-            result.put(productId, fakeInfo);
+//            fakeInfo.setPrice(100.0);
+//            fakeInfo.setStock(999);
+//            result.put(productId, fakeInfo);
         }
         return result;
     }

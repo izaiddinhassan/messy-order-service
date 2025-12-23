@@ -168,7 +168,7 @@ public class OrderController {
     // BAD: No validation, no proper response
     @PutMapping("/order/{id}/status")
     public OrderResponse updateStatus(@PathVariable Long id, @RequestBody UpdateOrderStatusRequest request) {
-        Order order = orderRepository.findById(id).orElseThrow(() -> new RuntimeException("Order id" + id + "not found"));
+        Order order = orderRepository.findById(id).orElseThrow(() -> new RuntimeException("Order id " + id + " not found"));
         if(request.getStatus() == null) {
             throw new RuntimeException("Status not found");
         }
