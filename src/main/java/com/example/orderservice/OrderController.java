@@ -1,10 +1,8 @@
 package com.example.orderservice;
 
-import org.hibernate.Internal;
-import org.hibernate.sql.Update;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
+
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.RestController;
@@ -139,7 +137,7 @@ public class OrderController {
     
     // BAD: Another method with performance issues
     @GetMapping("/analytics/popular")
-    public List<Map<String, Object>> getPopularProducts() {
+    public List<PopularSold> getPopularProducts() {
         List<Order> allOrders = orderRepository.findAll();
         
         // BAD: Nested loops to count products - O(n²)
@@ -154,12 +152,16 @@ public class OrderController {
         }
 
         // create response
-        List<Map<String, Object>> resultList = new ArrayList<>();
-        for ( Map.Entry<Long, Integer> entry: frequencyMap.entrySet() ) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("productId", entry.getKey());
-            map.put("totalSold", entry.getValue());
-            resultList.add(map);
+//        List<Map<String, Object>> resultList = new ArrayList<>();
+//        for (Map.Entry<Long, Integer> entry: frequencyMap.entrySet()) {
+//            Map<String, Object> map = new HashMap<>();
+//            map.put("productId", entry.getKey());
+//            map.put("totalSold", entry.getValue());
+//            resultList.add(map);
+//        }
+        List<PopularSold> resultList = new ArrayList<>();
+        for (Map.Entry<Long, Integer> entry: frequencyMap.entrySet()) {
+            resultList.add(new PopularSold(entry.getKey(), entry.getValue()));
         }
 
         return resultList;
